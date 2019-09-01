@@ -1,2 +1,2 @@
-# Raycaster
-A simple raycasting engine written in Unity
+# Raytracer
+A simple raytracing engine written in Unity
