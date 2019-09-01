@@ -1,6 +1,7 @@
 ﻿#pragma kernel TraceRays
 
 static const float PI = 3.14159265f;
+static const float REFLECTION_OFFSET = 0.001f;
 
 RWTexture2D<float4> Result;
 float4x4 CameraToWorld;
@@ -12,6 +13,7 @@ float2 PixelOffset;
 struct Ray {
     float3 origin;
     float3 direction;
+    float3 energy;
 };
 
 struct RayHit {
@@ -24,6 +26,7 @@ Ray CreateRay(float3 origin, float3 direction) {
     Ray ray;
     ray.origin = origin;
     ray.direction = direction;
+    ray.energy = float3(1, 1, 1);
     return ray;
 }
 
@@ -84,16 +87,38 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
 RayHit Trace(Ray ray) {
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-    IntersectSphere(ray, bestHit, float4(0, 3, 0, 1));
+    //IntersectSphere(ray, bestHit, float4(0, 3, 0, 1));
+    for (int i = -20; i < 20; i++) {
+        for (int j = -20; j < 20; j++) {
+            IntersectSphere(ray, bestHit, float4(i * 3, 1, j * 3, 1));
+        }
+    }
     return bestHit;
 }
 
 float3 Shade(inout Ray ray, RayHit hit) {
     if (hit.distance < 1.#INF) {
-        return hit.normal * 0.5f + 0.5;
+        float3 specular = float3(0.6f, 0.6f, 0.6f);
+        ray.origin = hit.position + hit.normal * REFLECTION_OFFSET;
+        ray.direction = reflect(ray.direction, hit.normal);
+        ray.energy *= specular;
+        return float3(0, 0, 0);
     } else {
+        ray.energy = 0;
         return SampleSkybox(ray.direction);
     }
+}
+
+float3 TraceAndShade(Ray ray) {
+    float3 result = float3(0, 0, 0);
+    for (int i = 0; i < 8; i++) {
+        RayHit hit = Trace(ray);
+        result += ray.energy * Shade(ray, hit);
+        if (!any(ray.energy)) {
+            break;
+        }
+    }
+    return result;
 }
 
 [numthreads(8,8,1)]
@@ -103,8 +128,7 @@ void TraceRays (uint3 id : SV_DispatchThreadID) {
 
     Ray ray = CreateCameraRay(uv);
 
-    RayHit hit = Trace(ray);
-    float3 result = Shade(ray, hit);
+    float4 result = float4(TraceAndShade(ray), 1);
 
-    Result[id.xy] = float4(result, 1);
+    Result[id.xy] = result;
 }
