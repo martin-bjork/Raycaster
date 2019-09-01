@@ -7,6 +7,7 @@ float4x4 CameraToWorld;
 float4x4 CameraInverseProjection;
 Texture2D<float4> SkyboxTexture;
 SamplerState sampler_SkyboxTexture;
+float2 PixelOffset;
 
 struct Ray {
     float3 origin;
@@ -46,7 +47,7 @@ float2 CalculateUVFromGroupIndex(float2 id) {
     uint width;
     uint height;
     Result.GetDimensions(width, height);
-    return float2((id + float2(0.5f, 0.5f)) / float2(width, height) * 2 - 1);
+    return float2((id + PixelOffset) / float2(width, height) * 2 - 1);
 }
 
 float3 SampleSkybox(float3 direction) {
