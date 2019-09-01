@@ -308,3 +308,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   raytracingShader: {fileID: 7200000, guid: 4163c80e2bf07604dbe52da552e5e3d7, type: 3}
+  skyboxTexture: {fileID: 2800000, guid: 5feb653e17cd81349bb11eecbfe8ced2, type: 3}

@@ -11,9 +11,13 @@ namespace RaytracingEngine {
         private const string RESULT_TEXTURE_NAME = "Result";
         private const string CAMERA_TO_WORLD_NAME = "CameraToWorld";
         private const string CAMERA_INVERSE_NAME = "CameraInverseProjection";
+        private const string SKYBOX_NAME = "SkyboxTexture";
 
         [SerializeField]
         private ComputeShader raytracingShader = default(ComputeShader);    // TODO: Figure out why default literal isn't allowed. Some wrong setting?
+
+        [SerializeField]
+        private Texture skyboxTexture = default(Texture);
 
         private RenderTexture renderTexture;
         private Camera renderCamera;
@@ -22,6 +26,7 @@ namespace RaytracingEngine {
         private int resultTextureId;
         private int cameraToWorldId;
         private int cameraInverseId;
+        private int skyboxTextureId;
 
         private int threadGroupsX;
         private int threadGroupsY;
@@ -70,8 +75,10 @@ namespace RaytracingEngine {
             resultTextureId = Shader.PropertyToID(RESULT_TEXTURE_NAME);
             cameraToWorldId = Shader.PropertyToID(CAMERA_TO_WORLD_NAME);
             cameraInverseId = Shader.PropertyToID(CAMERA_INVERSE_NAME);
+            skyboxTextureId = Shader.PropertyToID(SKYBOX_NAME);
 
             raytracingShader.SetTexture(kernelId, resultTextureId, renderTexture);
+            raytracingShader.SetTexture(kernelId, skyboxTextureId, skyboxTexture);
 
             threadGroupsX = Mathf.CeilToInt((float)Screen.width / GROUP_SIZE_X);
             threadGroupsY = Mathf.CeilToInt((float)Screen.height / GROUP_SIZE_Y);

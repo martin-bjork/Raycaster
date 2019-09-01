@@ -1,8 +1,12 @@
 ﻿#pragma kernel TraceRays
 
+static const float PI = 3.14159265f;
+
 RWTexture2D<float4> Result;
 float4x4 CameraToWorld;
 float4x4 CameraInverseProjection;
+Texture2D<float4> SkyboxTexture;
+SamplerState sampler_SkyboxTexture;
 
 struct Ray {
     float3 origin;
@@ -24,6 +28,12 @@ Ray CreateCameraRay(float2 uv) {
     return CreateRay(origin, direction);
 }
 
+float4 SampleSkybox(float3 direction) {
+    float theta = acos(direction.y) / -PI;
+    float phi = atan2(direction.x, -direction.z) / -PI * 0.5f;
+    return SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0);
+}
+
 [numthreads(8,8,1)]
 void TraceRays (uint3 id : SV_DispatchThreadID) {
 
@@ -35,5 +45,5 @@ void TraceRays (uint3 id : SV_DispatchThreadID) {
 
     Ray ray = CreateCameraRay(uv);
 
-    Result[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1);
+    Result[id.xy] = SampleSkybox(ray.direction);
 }
