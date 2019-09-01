@@ -1,0 +1,39 @@
+﻿#pragma kernel TraceRays
+
+RWTexture2D<float4> Result;
+float4x4 CameraToWorld;
+float4x4 CameraInverseProjection;
+
+struct Ray {
+    float3 origin;
+    float3 direction;
+};
+
+Ray CreateRay(float3 origin, float3 direction) {
+    Ray ray;
+    ray.origin = origin;
+    ray.direction = direction;
+    return ray;
+}
+
+Ray CreateCameraRay(float2 uv) {
+    float3 origin = mul(CameraToWorld, float4(0, 0, 0, 1)).xyz;
+    float3 direction = mul(CameraInverseProjection, float4(uv, 0, 1)).xyz;
+    direction = mul(CameraToWorld, float4(direction, 0)).xyz;
+    direction = normalize(direction);
+    return CreateRay(origin, direction);
+}
+
+[numthreads(8,8,1)]
+void TraceRays (uint3 id : SV_DispatchThreadID) {
+
+    uint width;
+    uint height;
+    Result.GetDimensions(width, height);
+
+    float2 uv = float2((id.xy + float2(0.5f, 0.5f)) / float2(width, height) * 2 - 1);
+
+    Ray ray = CreateCameraRay(uv);
+
+    Result[id.xy] = float4(ray.direction * 0.5f + 0.5f, 1);
+}

@@ -7,19 +7,28 @@ namespace RaytracingEngine {
         private const int GROUP_SIZE_X = 8;
         private const int GROUP_SIZE_Y = 8;
 
-        private const string KERNEL_NAME = "Raytrace";
+        private const string KERNEL_NAME = "TraceRays";
         private const string RESULT_TEXTURE_NAME = "Result";
+        private const string CAMERA_TO_WORLD_NAME = "CameraToWorld";
+        private const string CAMERA_INVERSE_NAME = "CameraInverseProjection";
 
         [SerializeField]
-        private ComputeShader raytracingShader;
+        private ComputeShader raytracingShader = default(ComputeShader);    // TODO: Figure out why default literal isn't allowed. Some wrong setting?
 
         private RenderTexture renderTexture;
+        private Camera renderCamera;
 
         private int kernelId;
         private int resultTextureId;
+        private int cameraToWorldId;
+        private int cameraInverseId;
 
         private int threadGroupsX;
         private int threadGroupsY;
+
+        private void Awake() {
+            renderCamera = GetComponent<Camera>();
+        }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination) {
             Render(destination);
@@ -32,8 +41,14 @@ namespace RaytracingEngine {
                 SetupShader();
             }
 
+            UpdateShaderParameters();
             raytracingShader.Dispatch(kernelId, threadGroupsX, threadGroupsY, 1);
             Graphics.Blit(renderTexture, destination);
+        }
+
+        private void UpdateShaderParameters() {
+            raytracingShader.SetMatrix(cameraToWorldId, renderCamera.cameraToWorldMatrix);
+            raytracingShader.SetMatrix(cameraInverseId, renderCamera.projectionMatrix.inverse);
         }
 
         private bool RenderTextureNeedsUpdate() {
@@ -53,6 +68,8 @@ namespace RaytracingEngine {
 
             kernelId = raytracingShader.FindKernel(KERNEL_NAME);
             resultTextureId = Shader.PropertyToID(RESULT_TEXTURE_NAME);
+            cameraToWorldId = Shader.PropertyToID(CAMERA_TO_WORLD_NAME);
+            cameraInverseId = Shader.PropertyToID(CAMERA_INVERSE_NAME);
 
             raytracingShader.SetTexture(kernelId, resultTextureId, renderTexture);
 
