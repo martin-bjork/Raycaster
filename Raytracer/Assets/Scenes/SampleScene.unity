@@ -310,3 +310,55 @@ MonoBehaviour:
   raytracingShader: {fileID: 7200000, guid: 4163c80e2bf07604dbe52da552e5e3d7, type: 3}
   skyboxTexture: {fileID: 2800000, guid: 5feb653e17cd81349bb11eecbfe8ced2, type: 3}
   directionalLigth: {fileID: 705507994}
+  sphereManager: {fileID: 1855485044}
+--- !u!1 &1855485043
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1855485045}
+  - component: {fileID: 1855485044}
+  m_Layer: 0
+  m_Name: SphereManager
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1855485044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1855485043}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 83545614eb178564b926665d62156fd6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  minimumRadius: 0.3
+  maximumRadius: 1.2
+  specularFactor: 0.04
+  maximumSpheres: 100
+  placementRadius: 10
+  maximumPlacementAttempts: 10
+  spherePrefab: {fileID: 3771057143385589469, guid: 3fd97994ca649ef4ba6601eca0af1cca,
+    type: 3}
+--- !u!4 &1855485045
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1855485043}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_RootOrder: 2
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}

@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using System.Linq;
+using UnityEngine;
 
 namespace RaytracingEngine {
 
@@ -17,15 +18,19 @@ namespace RaytracingEngine {
         private const string SKYBOX_NAME = "SkyboxTexture";
         private const string PIXEL_OFFSET_NAME = "PixelOffset";
         private const string LIGHT_NAME = "DirectionalLight";
+        private const string SPHERES_NAME = "Spheres";
 
         [SerializeField]
-        private ComputeShader raytracingShader = default(ComputeShader);    // TODO: Figure out why default literal isn't allowed. Some wrong setting?
+        private ComputeShader raytracingShader = default;
 
         [SerializeField]
-        private Texture skyboxTexture = default(Texture);
+        private Texture skyboxTexture = default;
 
         [SerializeField]
-        private Light directionalLigth = default(Light);
+        private Light directionalLigth = default;
+
+        [SerializeField]
+        private SphereManager sphereManager = default;
 
         private RenderTexture renderTexture;
         private Camera renderCamera;
@@ -37,6 +42,10 @@ namespace RaytracingEngine {
         private int skyboxTextureId;
         private int pixelOffsetId;
         private int lightId;
+        private int spheresId;
+
+        private ComputeBuffer sphereBuffer;
+        private int sphereBufferStride = sizeof(float) * (3 + 1 + 4 + 4);   // Size of SphereData
 
         private int threadGroupsX;
         private int threadGroupsY;
@@ -48,6 +57,9 @@ namespace RaytracingEngine {
         private void Awake() {
             renderCamera = GetComponent<Camera>();
             SetupShader();
+            SetupRenderTexture();
+            SetupComputeShader();
+            SetupComputeBuffer();
         }
 
         private void OnRenderImage(RenderTexture source, RenderTexture destination) {
@@ -55,11 +67,20 @@ namespace RaytracingEngine {
         }
 
         private void Update() {
-            if (transform.hasChanged || directionalLigth.transform.hasChanged) {
+            bool objectsHaveChanged = sphereManager?.IsDirty ?? false;
+            if (objectsHaveChanged) {
+                SetupComputeBuffer();
+                sphereManager.SetNotDirty();
+            }
+            if (objectsHaveChanged || transform.hasChanged || directionalLigth.transform.hasChanged) {
                 currentSample = 0;
                 transform.hasChanged = false;
                 directionalLigth.transform.hasChanged = false;
             }
+        }
+
+        private void OnDestroy() {
+            DisposeComputeBuffer();
         }
 
         private void Render(RenderTexture destination) {
@@ -113,12 +134,24 @@ namespace RaytracingEngine {
             skyboxTextureId = Shader.PropertyToID(SKYBOX_NAME);
             pixelOffsetId = Shader.PropertyToID(PIXEL_OFFSET_NAME);
             lightId = Shader.PropertyToID(LIGHT_NAME);
+            spheresId = Shader.PropertyToID(SPHERES_NAME);
 
             raytracingShader.SetTexture(kernelId, resultTextureId, renderTexture);
             raytracingShader.SetTexture(kernelId, skyboxTextureId, skyboxTexture);
 
             threadGroupsX = Mathf.CeilToInt((float)Screen.width / GROUP_SIZE_X);
             threadGroupsY = Mathf.CeilToInt((float)Screen.height / GROUP_SIZE_Y);
+        }
+
+        private void SetupComputeBuffer() {
+            DisposeComputeBuffer();
+            sphereBuffer = new ComputeBuffer(sphereManager.Spheres.Count, sphereBufferStride);
+            sphereBuffer.SetData(sphereManager.Spheres.Select(sphere => sphere.Data).ToArray());
+            raytracingShader.SetBuffer(kernelId, spheresId, sphereBuffer);
+        }
+
+        private void DisposeComputeBuffer() {
+            sphereBuffer?.Dispose();
         }
 
         private void SetupShader() {
