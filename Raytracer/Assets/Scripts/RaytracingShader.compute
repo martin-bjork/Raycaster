@@ -2,6 +2,7 @@
 
 static const float PI = 3.14159265f;
 static const float REFLECTION_OFFSET = 0.001f;
+static const float INFINITY = 1.#INF;
 
 RWTexture2D<float4> Result;
 float4x4 CameraToWorld;
@@ -9,6 +10,7 @@ float4x4 CameraInverseProjection;
 Texture2D<float4> SkyboxTexture;
 SamplerState sampler_SkyboxTexture;
 float2 PixelOffset;
+float4 DirectionalLight;
 
 struct Ray {
     float3 origin;
@@ -33,7 +35,7 @@ Ray CreateRay(float3 origin, float3 direction) {
 RayHit CreateRayHit() {
     RayHit hit;
     hit.position = float3(0, 0, 0);
-    hit.distance = 1.#INF;
+    hit.distance = INFINITY;
     hit.normal = float3(0, 0, 0);
     return hit;
 }
@@ -87,7 +89,6 @@ void IntersectSphere(Ray ray, inout RayHit bestHit, float4 sphere) {
 RayHit Trace(Ray ray) {
     RayHit bestHit = CreateRayHit();
     IntersectGroundPlane(ray, bestHit);
-    //IntersectSphere(ray, bestHit, float4(0, 3, 0, 1));
     for (int i = -20; i < 20; i++) {
         for (int j = -20; j < 20; j++) {
             IntersectSphere(ray, bestHit, float4(i * 3, 1, j * 3, 1));
@@ -96,13 +97,24 @@ RayHit Trace(Ray ray) {
     return bestHit;
 }
 
+float3 DiffuseShading(float3 normal, float3 albedo) {
+    return saturate(-dot(normal, DirectionalLight.xyz)) * DirectionalLight.w * albedo;
+}
+
+bool CastShadowRay(RayHit hit) {
+    Ray shadowRay = CreateRay(hit.position + hit.normal * REFLECTION_OFFSET, -DirectionalLight.xyz);
+    RayHit shadowHit = Trace(shadowRay);
+    return shadowHit.distance != INFINITY;
+}
+
 float3 Shade(inout Ray ray, RayHit hit) {
-    if (hit.distance < 1.#INF) {
-        float3 specular = float3(0.6f, 0.6f, 0.6f);
+    if (hit.distance < INFINITY) {
+        float3 specular = 0.1f * float3(1, 1, 1);
+        float3 albedo = 0.8f * float3(1, 1, 1);
         ray.origin = hit.position + hit.normal * REFLECTION_OFFSET;
         ray.direction = reflect(ray.direction, hit.normal);
         ray.energy *= specular;
-        return float3(0, 0, 0);
+        return CastShadowRay(hit) ? float3(0, 0, 0) : DiffuseShading(hit.normal, albedo);
     } else {
         ray.energy = 0;
         return SampleSkybox(ray.direction);

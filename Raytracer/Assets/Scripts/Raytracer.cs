@@ -16,12 +16,16 @@ namespace RaytracingEngine {
         private const string CAMERA_INVERSE_NAME = "CameraInverseProjection";
         private const string SKYBOX_NAME = "SkyboxTexture";
         private const string PIXEL_OFFSET_NAME = "PixelOffset";
+        private const string LIGHT_NAME = "DirectionalLight";
 
         [SerializeField]
         private ComputeShader raytracingShader = default(ComputeShader);    // TODO: Figure out why default literal isn't allowed. Some wrong setting?
 
         [SerializeField]
         private Texture skyboxTexture = default(Texture);
+
+        [SerializeField]
+        private Light directionalLigth = default(Light);
 
         private RenderTexture renderTexture;
         private Camera renderCamera;
@@ -32,6 +36,7 @@ namespace RaytracingEngine {
         private int cameraInverseId;
         private int skyboxTextureId;
         private int pixelOffsetId;
+        private int lightId;
 
         private int threadGroupsX;
         private int threadGroupsY;
@@ -50,9 +55,10 @@ namespace RaytracingEngine {
         }
 
         private void Update() {
-            if (transform.hasChanged) {
+            if (transform.hasChanged || directionalLigth.transform.hasChanged) {
                 currentSample = 0;
                 transform.hasChanged = false;
+                directionalLigth.transform.hasChanged = false;
             }
         }
 
@@ -75,6 +81,9 @@ namespace RaytracingEngine {
             raytracingShader.SetVector(pixelOffsetId, pixelOffset);
             raytracingShader.SetMatrix(cameraToWorldId, renderCamera.cameraToWorldMatrix);
             raytracingShader.SetMatrix(cameraInverseId, renderCamera.projectionMatrix.inverse);
+            Vector3 lightDirection = directionalLigth.transform.forward;
+            Vector4 lightData = new Vector4(lightDirection.x, lightDirection.y, lightDirection.z, directionalLigth.intensity);
+            raytracingShader.SetVector(lightId, lightData);
         }
 
         private void UpdateShaderParameters() {
@@ -103,6 +112,7 @@ namespace RaytracingEngine {
             cameraInverseId = Shader.PropertyToID(CAMERA_INVERSE_NAME);
             skyboxTextureId = Shader.PropertyToID(SKYBOX_NAME);
             pixelOffsetId = Shader.PropertyToID(PIXEL_OFFSET_NAME);
+            lightId = Shader.PropertyToID(LIGHT_NAME);
 
             raytracingShader.SetTexture(kernelId, resultTextureId, renderTexture);
             raytracingShader.SetTexture(kernelId, skyboxTextureId, skyboxTexture);
