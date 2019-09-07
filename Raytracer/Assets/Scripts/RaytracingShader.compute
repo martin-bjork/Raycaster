@@ -3,6 +3,7 @@
 static const float PI = 3.14159265f;
 static const float REFLECTION_OFFSET = 0.001f;
 static const float INFINITY = 1.#INF;
+static const float SKYBOX_STRENGTH = 10;
 
 struct Ray {
     float3 origin;
@@ -33,6 +34,18 @@ SamplerState sampler_SkyboxTexture;
 float2 PixelOffset;
 float4 DirectionalLight;
 StructuredBuffer<Sphere> Spheres;
+float Sample;
+
+float random(float2 v, float seed = 0) {
+    float2 seeded = v + seed * float2(12345.6f, 9876.4f);
+    float3 p3  = frac(seeded.xyx * 0.1031f);
+    p3 += dot(p3, p3.yzx + 33.33f);
+    return frac((p3.x + p3.y) * p3.z);
+}
+
+float sdot(float3 x, float3 y, float f = 1) {
+    return saturate(dot(x, y) * f);
+}
 
 Ray CreateRay(float3 origin, float3 direction) {
     Ray ray;
@@ -67,10 +80,25 @@ float2 CalculateUVFromGroupIndex(float2 id) {
     return float2((id + PixelOffset) / float2(width, height) * 2 - 1);
 }
 
-float3 SampleSkybox(float3 direction) {
+float3x3 GetTangentSpace(float3 normal) {
+    float3 helper = abs(normal.x) > 0.99f ? float3(0, 0, 1) : float3(1, 0, 0);
+    float3 tangent = normalize(cross(normal, helper));
+    float3 binormal = normalize(cross(normal, tangent));
+    return float3x3(tangent, binormal, normal);
+}
+
+float3 SampleHemisphere(float3 normal, float2 pixel, float seed) {
+    float cosTheta = random(pixel, seed);
+    float sinTheta = sqrt(max(0, 1 - cosTheta * cosTheta));
+    float phi = 2 * PI * random(pixel, seed + 123);
+    float3 tangentSpaceDir = float3(cos(phi) * sinTheta, sin(phi) * sinTheta, cosTheta);
+    return mul(tangentSpaceDir, GetTangentSpace(normal));
+}
+
+float3 SampleSkybox(float3 direction, float strength) {
     float theta = acos(direction.y) / -PI;
     float phi = atan2(direction.x, -direction.z) / -PI * 0.5f;
-    return SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz;
+    return saturate(SkyboxTexture.SampleLevel(sampler_SkyboxTexture, float2(phi, theta), 0).xyz * strength);
 }
 
 void IntersectGroundPlane(Ray ray, inout RayHit bestHit) {
@@ -128,23 +156,23 @@ bool CastShadowRay(RayHit hit) {
     return shadowHit.distance != INFINITY;
 }
 
-float3 Shade(inout Ray ray, RayHit hit) {
+float3 Shade(inout Ray ray, RayHit hit, float2 pixel, float seed) {
     if (hit.distance < INFINITY) {
         ray.origin = hit.position + hit.normal * REFLECTION_OFFSET;
-        ray.direction = reflect(ray.direction, hit.normal);
-        ray.energy *= hit.specular;
-        return CastShadowRay(hit) ? float3(0, 0, 0) : DiffuseShading(hit.normal, hit.albedo);
+        ray.direction = SampleHemisphere(hit.normal, pixel, seed);
+        ray.energy *= 2 * hit.albedo * sdot(hit.normal, ray.direction);
+        return 0;
     } else {
         ray.energy = 0;
-        return SampleSkybox(ray.direction);
+        return SampleSkybox(ray.direction, SKYBOX_STRENGTH);
     }
 }
 
-float3 TraceAndShade(Ray ray) {
+float3 TraceAndShade(Ray ray, float2 pixel, float seed) {
     float3 result = float3(0, 0, 0);
     for (int i = 0; i < 8; i++) {
         RayHit hit = Trace(ray);
-        result += ray.energy * Shade(ray, hit);
+        result += ray.energy * Shade(ray, hit, pixel, seed + i);
         if (!any(ray.energy)) {
             break;
         }
@@ -159,7 +187,7 @@ void TraceRays (uint3 id : SV_DispatchThreadID) {
 
     Ray ray = CreateCameraRay(uv);
 
-    float4 result = float4(TraceAndShade(ray), 1);
+    float4 result = float4(TraceAndShade(ray, id.xy, Sample), 1);
 
     Result[id.xy] = result;
 }

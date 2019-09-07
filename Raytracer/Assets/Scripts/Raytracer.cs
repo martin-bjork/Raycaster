@@ -9,7 +9,7 @@ namespace RaytracingEngine {
         private const int GROUP_SIZE_Y = 8;
 
         private const string ADD_SHADER_NAME = "Hidden/AddShader";
-        private const string SAMPLE_NAME = "_Sample";
+        private const string SAMPLE_NAME = "Sample";
 
         private const string KERNEL_NAME = "TraceRays";
         private const string RESULT_TEXTURE_NAME = "Result";
@@ -32,7 +32,8 @@ namespace RaytracingEngine {
         [SerializeField]
         private SphereManager sphereManager = default;
 
-        private RenderTexture renderTexture;
+        private RenderTexture convergedTexture;
+        private RenderTexture raytraceResultTexture;
         private Camera renderCamera;
 
         private int kernelId;
@@ -57,7 +58,7 @@ namespace RaytracingEngine {
         private void Awake() {
             renderCamera = GetComponent<Camera>();
             SetupShader();
-            SetupRenderTexture();
+            SetupRenderTextures();
             SetupComputeShader();
             SetupComputeBuffer();
         }
@@ -86,7 +87,7 @@ namespace RaytracingEngine {
         private void Render(RenderTexture destination) {
 
             if (RenderTextureNeedsUpdate()) {
-                SetupRenderTexture();
+                SetupRenderTextures();
                 SetupComputeShader();
                 currentSample = 0;
             }
@@ -94,7 +95,9 @@ namespace RaytracingEngine {
             UpdateComputeShaderParameters();
             UpdateShaderParameters();
             raytracingShader.Dispatch(kernelId, threadGroupsX, threadGroupsY, 1);
-            Graphics.Blit(renderTexture, destination, addMaterial);
+
+            Graphics.Blit(raytraceResultTexture, convergedTexture, addMaterial);
+            Graphics.Blit(convergedTexture, destination);
         }
 
         private void UpdateComputeShaderParameters() {
@@ -105,6 +108,7 @@ namespace RaytracingEngine {
             Vector3 lightDirection = directionalLigth.transform.forward;
             Vector4 lightData = new Vector4(lightDirection.x, lightDirection.y, lightDirection.z, directionalLigth.intensity);
             raytracingShader.SetVector(lightId, lightData);
+            raytracingShader.SetFloat(sampleId, Random.value);
         }
 
         private void UpdateShaderParameters() {
@@ -113,16 +117,22 @@ namespace RaytracingEngine {
         }
 
         private bool RenderTextureNeedsUpdate() {
-            return renderTexture == null || renderTexture.width != Screen.width || renderTexture.height != Screen.height;
+            return raytraceResultTexture == null || raytraceResultTexture.width != Screen.width || raytraceResultTexture.height != Screen.height;
         }
 
-        private void SetupRenderTexture() {
-            renderTexture?.Release();
-            renderTexture = new RenderTexture(Screen.width, Screen.height, 0, 
-                                              RenderTextureFormat.ARGBFloat, 
-                                              RenderTextureReadWrite.Linear);
-            renderTexture.enableRandomWrite = true;
-            renderTexture.Create();
+        private void SetupRenderTextures() {
+            raytraceResultTexture?.Release();
+            raytraceResultTexture = new RenderTexture(Screen.width, Screen.height, 0, 
+                                                      RenderTextureFormat.ARGBFloat, 
+                                                      RenderTextureReadWrite.Linear);
+            raytraceResultTexture.enableRandomWrite = true;
+            raytraceResultTexture.Create();
+
+            convergedTexture?.Release();
+            convergedTexture = new RenderTexture(Screen.width, Screen.height, 0,
+                                                 RenderTextureFormat.ARGBFloat,
+                                                 RenderTextureReadWrite.Linear);
+            convergedTexture.Create();
         }
 
         private void SetupComputeShader() {
@@ -136,7 +146,7 @@ namespace RaytracingEngine {
             lightId = Shader.PropertyToID(LIGHT_NAME);
             spheresId = Shader.PropertyToID(SPHERES_NAME);
 
-            raytracingShader.SetTexture(kernelId, resultTextureId, renderTexture);
+            raytracingShader.SetTexture(kernelId, resultTextureId, raytraceResultTexture);
             raytracingShader.SetTexture(kernelId, skyboxTextureId, skyboxTexture);
 
             threadGroupsX = Mathf.CeilToInt((float)Screen.width / GROUP_SIZE_X);
@@ -145,7 +155,8 @@ namespace RaytracingEngine {
 
         private void SetupComputeBuffer() {
             DisposeComputeBuffer();
-            sphereBuffer = new ComputeBuffer(sphereManager.Spheres.Count, sphereBufferStride);
+            // FIXME: Enable having no spheres at all...
+            sphereBuffer = new ComputeBuffer(Mathf.Max(sphereManager.Spheres.Count, 1), sphereBufferStride);
             sphereBuffer.SetData(sphereManager.Spheres.Select(sphere => sphere.Data).ToArray());
             raytracingShader.SetBuffer(kernelId, spheresId, sphereBuffer);
         }

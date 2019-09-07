@@ -35,10 +35,10 @@
 			}
 
             sampler2D _MainTex;
-			int _Sample;
+			int Sample;
 
             float4 frag (v2f i) : SV_Target {
-				return float4(tex2D(_MainTex, i.uv).rgb, 1.0f / (_Sample + 1.0f));
+				return float4(tex2D(_MainTex, i.uv).rgb, 1.0f / (Sample + 1.0f));
 			}
 
 			ENDCG

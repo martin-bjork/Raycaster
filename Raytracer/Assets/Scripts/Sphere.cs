@@ -36,9 +36,10 @@ namespace RaytracingEngine {
             this.albedo = albedo;
             this.specular = specular;
             Renderer renderer = GetComponent<Renderer>();
-            Material material = renderer.material;
+            Material material = new Material(renderer.sharedMaterial);
             material.color = albedo != new Color(0, 0, 0) ? albedo : specular;
             renderer.material = material;
+            colorHasChanged = ColorHasChanged();
         }
 
         private bool ColorHasChanged() {
@@ -46,11 +47,13 @@ namespace RaytracingEngine {
         }
 
         private SphereData CreateData() {
+            Vector3 scale = transform.localScale;
+            float averageScale = (Mathf.Abs(scale.x) + Mathf.Abs(scale.y) + Mathf.Abs(scale.z)) / 3;
             return new SphereData() {
                 albedo = albedo,
                 specular = specular,
                 position = transform.position,
-                radius = transform.localScale.magnitude / 2
+                radius = averageScale / 2
             };
         }
 
